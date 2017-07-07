@@ -1,0 +1,38 @@
+
+language: generic
+sudo: false
+script: boot-driver test
+before_cache:
+  - rm -rf $HOME/.boot/cache/tmp/
+cache:
+  directories:
+    - $HOME/.m2
+    - $HOME/.boot
+matrix:
+  include:
+    - env: JDK=zulu8
+    - env: JDK=zulu8 CLOJURE=1.8
+    - env: JDK=zulu9
+  allow_failures:
+    - env: JDK=zulu9
+
+before_install:
+  - curl -fsSLo init.sh http://irresponsible.github.io/tools.travis.jdk-installer/init.sh
+  - source init.sh
+  - jdk-installer install "${JDK}"
+  - boot-driver install-boot
+  - boot-driver setup-env
+  - java -version
+install:
+  - boot-driver install-deps
+
+notifications:
+  irc:
+    channels:
+      - "irc://chat.freenode.net:6665/#irresponsible-ci"
+    skip_join: true
+    template:
+      - "build %{build_number} \x037%{result}\x03: %{repository_slug}/%{branch} @ \x037%{commit}\x03 - \x037%{commit_subject}\x03 by \x033%{author}\x03"
+      - "  - elapsed: %{elapsed_time}, duration: %{duration}"
+      - "  - changed: %{compare_url}"
+      - "  - build  : %{build_url}"

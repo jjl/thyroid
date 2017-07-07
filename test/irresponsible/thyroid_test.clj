@@ -1,9 +1,48 @@
 (ns irresponsible.thyroid-test
   (:require [clojure.test :as t :refer [deftest testing is]]
+            [clojure.spec.gen.alpha :as gen]
             [irresponsible.thyroid :as thyroid])
-  (:import (clojure.lang ExceptionInfo)))
+  (:import [clojure.lang ExceptionInfo]
+           [org.thymeleaf.templateresolver
+            FileTemplateResolver StringTemplateResolver]))
 
-(deftest test-template-resolver)
+(deftest test-template-resolver
+  (testing "file resolver"
+    (testing "with missing required params"
+      (is (thrown? ExceptionInfo (thyroid/template-resolver {:type :file}))))
+
+    (testing "with required params"
+      (let [r (thyroid/template-resolver {:type :file
+                                          :prefix "test-data"
+                                          :suffix ".html"})]
+        (is (instance? FileTemplateResolver r))
+        (is (= "test-data" (.getPrefix r)))
+        (is (= ".html" (.getSuffix r)))))
+
+    (testing "with required params"
+      (let [r (thyroid/template-resolver {:type :file
+                                          :prefix "test-data"
+                                          :suffix ".html"
+                                          :cache? true
+                                          :cache-ttl 420})]
+        (is (.isCacheable r))
+        (is (= 420 (.getCacheTTLMs r))))))
+
+  (testing "string resolver"
+    (testing "with no params"
+      (let [r (thyroid/template-resolver {:type :string})]
+        (is (instance? StringTemplateResolver r))))
+
+    (testing "with optional params"
+      (let [r (thyroid/template-resolver {:type :string
+                                          :cache? true
+                                          :cache-ttl 420})]
+        (is (.isCacheable r))
+        (is (= 420 (.getCacheTTLMs r))))))
+
+  (testing "throws when resolver type doesn't exist"
+    (is (thrown? ExceptionInfo
+                 (thyroid/template-resolver {:type :invalid})))))
 
 (deftest test-dialect)
 
@@ -32,10 +71,6 @@
   (testing "does nothing with an empty map"
     (let [c (thyroid/context {})]
       (is (empty? (.getVariableNames c))))))
-
-(deftest test-resolvers
-  (testing "file")
-  (testing "string"))
 
 (deftest test-make-engine
   (testing "resolvers are required"

@@ -7,10 +7,9 @@
            [org.thymeleaf.model AttributeValueQuotes IStandaloneElementTag]
            [org.thymeleaf.standard StandardDialect]
            [org.thymeleaf.templatemode TemplateMode]
-           [org.thymeleaf.templateresolver ITemplateResolver FileTemplateResolver]
+           [org.thymeleaf.templateresolver ITemplateResolver
+            FileTemplateResolver StringTemplateResolver]
            [irresponsible.thyroid ClojureTagProcessor ClojureAttrProcessor ClojureDialect]))
-
-(s/def ::resolver #{:file})
 
 (s/def ::prefix (s/and string? seq))
 (s/def ::suffix (s/and string? seq))
@@ -19,9 +18,14 @@
 (s/def ::file-template-resolver
   (s/keys :req-un [::prefix ::suffix] :opt-un [::cache-ttl ::cache?]))
 
+(s/def ::string-template-resolver
+  (s/keys :opt-un [::cache-ttl ::cache?]))
+
 (defmulti template-resolver-spec :type :default ::default)
 
 (defmethod template-resolver-spec :file [_] ::file-template-resolver)
+(defmethod template-resolver-spec :string [_] ::string-template-resolver)
+;; FIXME: do nothing, end users shouldn't need to use spec
 (defmethod template-resolver-spec ::default [{:keys [type]}]
   (throw (ex-info (str "Unknown template resolver type: " type) {:got type})))
 
@@ -29,16 +33,26 @@
   #(:type (ss/assert! ::template-resolver %))
   :default ::default)
 
+(defn- set-cache-attrs!
+  [resolver {:keys [^long cache-ttl ^boolean cache?]}]
+  (when cache-ttl
+    (.setCacheTTLMs resolver cache-ttl))
+  (when (some? cache?)
+    (.setCacheable resolver cache?)))
+
 (defmethod template-resolver :file
-  [{:keys [^String prefix ^String suffix ^long cache-ttl ^boolean cache?]}]
+  [{:keys [^String prefix ^String suffix] :as options}]
   (let [tr (doto (FileTemplateResolver.)
              (.setPrefix prefix)
              (.setSuffix suffix))]
-    (when cache-ttl
-      (.setCacheTTLMs tr cache-ttl))
-    (when (some? cache?)
-      (.setCacheable tr cache?))
+    (set-cache-attrs! tr options)
     tr))
+
+(defmethod template-resolver :string
+  [options]
+  (let [sr (StringTemplateResolver.)]
+    (set-cache-attrs! sr options)
+    sr))
 
 (defmethod template-resolver ::default
   [{:keys [type]}]
@@ -58,8 +72,9 @@
         e (TemplateEngine.)]
     (doseq [d dialects]
       (.addDialect e d))
-    (doto e (.setTemplateResolvers (set resolvers))
-          (prn))))
+    (doto e
+      (.setTemplateResolvers (set resolvers))
+      (prn))))
 
 (s/def ::meta map?)
 
@@ -95,7 +110,7 @@
      :prefix - mandatory string, the prefix of the dialect
      :name - mandatory string, the tag name
      :use-prefix? - whether the tag should be recognised with or without the prefix
-     :precedence - optional int, defaults to equal precedence with the standard dialect 
+     :precedence - optional int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag structure-handler], void
    returns: ClojureTagProcessor"
   [opts]
@@ -136,6 +151,9 @@
       (.setVariable c k v))
     c))
 
-(defn render [^TemplateEngine engine ^String template data]
+(defn render
+  "Render a template `template` using `engine` as a string,
+  using `data` as the context."
+  [^TemplateEngine engine ^String template data]
   (let [^Context c (context data)]
     (.process engine template c)))

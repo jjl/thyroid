@@ -24,12 +24,14 @@ class ClojureTagProcessor(
   val _meta: IPersistentMap? = null
 ) : AbstractElementTagProcessor(TemplateMode.HTML, _dialectPrefix, _tagName, _usePrefix, null, false, _precedence)
   , IObj {
-  override fun meta(): IPersistentMap? = _meta
-  override fun withMeta(meta: IPersistentMap?): IObj = ClojureTagProcessor(dialectPrefix, _tagName, _usePrefix, _precedence, _handler, meta)
-  override fun doProcess(ctx: ITemplateContext, tag: IProcessableElementTag, h: IElementTagStructureHandler) {
-    _handler.invoke(ctx,tag,h)
-  }
+    override fun meta(): IPersistentMap? = _meta
 
+    override fun withMeta(meta: IPersistentMap?): IObj =
+        ClojureTagProcessor(dialectPrefix, _tagName, _usePrefix, _precedence, _handler, meta)
+
+    override fun doProcess(ctx: ITemplateContext, tag: IProcessableElementTag, h: IElementTagStructureHandler) {
+      _handler.invoke(ctx,tag,h)
+    }
 }
 
 @Suppress("UNUSED")
@@ -45,10 +47,13 @@ class ClojureAttrProcessor(
   val _meta: IPersistentMap? = null
 ) : AbstractAttributeTagProcessor(TemplateMode.HTML, _dialectPrefix, _tagName, _useTagPrefix, _attrName, _useAttrPrefix, _precedence, _remove)
   , IObj {
-  override fun meta(): IPersistentMap? = _meta
-  override fun withMeta(meta: IPersistentMap?): IObj = ClojureAttrProcessor(_dialectPrefix, _tagName, _attrName, _useTagPrefix, _useAttrPrefix, _remove, _precedence, _handler, meta)
-  override fun doProcess(ctx: ITemplateContext, tag: IProcessableElementTag, attrName: AttributeName, attrValue: String, sh: IElementTagStructureHandler) {
-    _handler.invoke(ctx, tag, attrName, attrValue, sh)
+    override fun meta(): IPersistentMap? = _meta
+
+    override fun withMeta(meta: IPersistentMap?): IObj =
+        ClojureAttrProcessor(_dialectPrefix, _tagName, _attrName, _useTagPrefix, _useAttrPrefix, _remove, _precedence, _handler, meta)
+
+    override fun doProcess(ctx: ITemplateContext, tag: IProcessableElementTag, attrName: AttributeName, attrValue: String, sh: IElementTagStructureHandler) {
+      _handler.invoke(ctx, tag, attrName, attrValue, sh)
   }
 }
 
@@ -61,11 +66,16 @@ class ClojureDialect(
   val _meta: IPersistentMap? = null
 ) : AbstractProcessorDialect(_name, _prefix, _precedence), IObj {
   override fun meta(): IPersistentMap? = _meta
-  override fun withMeta(meta: IPersistentMap?): IObj = ClojureDialect(_name, _prefix,_getProcessors, _precedence,meta)
+
+  override fun withMeta(meta: IPersistentMap?): IObj
+    = ClojureDialect(_name, _prefix,_getProcessors, _precedence,meta)
+
   override fun getProcessors(dialectPrefix: String) : Set<IProcessor> {
     val ps = _getProcessors.invoke(dialectPrefix) as? Set<*>
       ?: throw IllegalStateException("handler did not return a set")
-    return ps.map { it as? IProcessor ?: throw IllegalStateException("An item in the set was not an IProcessor") }.toSet()
+    return ps.map {
+      it as? IProcessor ?: throw IllegalStateException("An item in the set was not an IProcessor")
+    }.toSet()
   }
 }
 

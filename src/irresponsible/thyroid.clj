@@ -63,7 +63,7 @@
 
 (s/def ::meta map?)
 
-(s/def ::name string?) 
+(s/def ::name string?)
 (s/def ::prefix string?)
 (s/def ::precedence int?)
 (s/def ::handler ifn?)
@@ -130,10 +130,11 @@
     (ClojureAttrProcessor. prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta)))
 
 (defn context [m]
-  (reduce-kv (fn [^Context acc k v]
-               (.setVariable acc k v))
-             (Context.)
-             m))
+  (let [^Context c (Context.)]
+    (doseq [[k v] m]
+      ;; FIXME: convert k to string
+      (.setVariable c k v))
+    c))
 
 (defn render [^TemplateEngine engine ^String template data]
   (let [^Context c (context data)]

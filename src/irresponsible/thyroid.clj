@@ -9,7 +9,8 @@
            [org.thymeleaf.templatemode TemplateMode]
            [org.thymeleaf.templateresolver ITemplateResolver
             FileTemplateResolver StringTemplateResolver]
-           [irresponsible.thyroid ClojureTagProcessor ClojureAttrProcessor ClojureDialect]))
+           [irresponsible.thyroid
+            ClojureTagProcessor ClojureAttrProcessor ClojureDialect]))
 
 (s/def ::prefix (s/and string? seq))
 (s/def ::suffix (s/and string? seq))
@@ -144,11 +145,14 @@
   (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta]} (ss/assert! ::by-attr-opts opts)]
     (ClojureAttrProcessor. prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta)))
 
+(defn kebab-case->snake-case
+  [v]
+  (clojure.string/replace (name v) #"-" "_"))
+
 (defn context [m]
   (let [^Context c (Context.)]
     (doseq [[k v] m]
-      ;; FIXME: convert k to string
-      (.setVariable c k v))
+      (.setVariable c (-> k name kebab-case->snake-case) v))
     c))
 
 (defn render

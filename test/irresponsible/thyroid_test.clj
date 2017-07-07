@@ -83,4 +83,10 @@
       (let [s (thyroid/render engine
                               "<h1 th:text=${title}></h1>"
                               {"title" "Hello World"})]
-        (is (= "<h1>Hello World</h1>title"))))))
+        (is (= s "<h1>Hello World</h1>"))))
+
+    (testing "accepts clojure style variable names"
+      (let [s (thyroid/render engine
+                              "<h1 th:text=${clj_style_var}></h1>"
+                              {:clj-style-var "Hello World"})]
+        (is (= s "<h1>Hello World</h1>"))))))

@@ -1,5 +1,6 @@
 (ns irresponsible.thyroid
   (:require [clojure.spec.alpha :as s]
+            [clojure.walk :as walk]
             [irresponsible.spectra :as ss])
   (:import [org.thymeleaf TemplateEngine]
            [org.thymeleaf.context Context]
@@ -44,6 +45,7 @@
 (defmethod template-resolver :file
   [{:keys [^String prefix ^String suffix] :as options}]
   (let [tr (doto (FileTemplateResolver.)
+             ;; TODO: ensure prefix has trailing /
              (.setPrefix prefix)
              (.setSuffix suffix))]
     (set-cache-attrs! tr options)
@@ -68,14 +70,16 @@
 (s/def ::dialects (s/coll-of ::dialect :into []))
 (s/def ::thyroid (s/keys :req-un [::resolvers] :opt-un [::dialects]))
 
-(defn make-engine [opts]
+(defn make-engine
+  "Creates a thymeleaf TemplateEngine with the given properties.
+  args: [opts]:"
+  [opts]
   (let [{:keys [resolvers dialects]} (ss/assert! ::thyroid opts)
         e (TemplateEngine.)]
     (doseq [d dialects]
       (.addDialect e d))
-    (doto e
-      (.setTemplateResolvers (set resolvers))
-      (prn))))
+    (.setTemplateResolvers e (set resolvers))
+    e))
 
 (s/def ::meta map?)
 
@@ -145,14 +149,36 @@
   (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta]} (ss/assert! ::by-attr-opts opts)]
     (ClojureAttrProcessor. prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta)))
 
-(defn kebab-case->snake-case
-  [v]
-  (clojure.string/replace (name v) #"-" "_"))
+(defn munge-key
+  "Returns a string that is valid for use as an identifier
+  in thymeleaf, replacing dashes and spaces with underscores."
+  [k]
+  (-> (name k)
+      (clojure.string/replace #"-+" "_")
+      (clojure.string/replace #"\s+" "_")))
 
-(defn context [m]
+(defn munge-coll
+  "Returns a collection that is valid for use when indexing
+  in thymeleaf. This includes maps only, collections themselves
+  will not be touched."
+  [m]
+  (let [f (fn [[k v]] [(munge-key k) v])]
+    (walk/postwalk (fn [x]
+                     (cond
+                       (map? x) (into (empty x) (map f x))
+                       (coll? x) (into (empty x) (map munge-coll x))
+                       :else x))
+                   m)))
+
+(defn context
+  "Returns a thymeleaf Context using a clojure map. Handles converting keys
+  to valid thymeleaf identifiers. E.g. a-valid-var -> a_valid_var"
+  [m]
   (let [^Context c (Context.)]
     (doseq [[k v] m]
-      (.setVariable c (-> k name kebab-case->snake-case) v))
+      (.setVariable c
+       (munge-key k)
+       (if (coll? v) (munge-coll v) v)))
     c))
 
 (defn render

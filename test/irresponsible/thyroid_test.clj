@@ -1,6 +1,7 @@
 (ns irresponsible.thyroid-test
   (:require [clojure.test :as t :refer [deftest testing is]]
-            [clojure.spec.gen.alpha :as gen]
+            [irresponsible.domiscuity.dom :as dom]
+            [irresponsible.domiscuity.parser :as dom-parser]
             [irresponsible.thyroid :as thyroid])
   (:import [clojure.lang ExceptionInfo]
            [org.thymeleaf.templateresolver
@@ -50,6 +51,35 @@
 
 (deftest test-process-by-attrs)
 
+(deftest test-munge-key
+  (is (= "nogaps" (thyroid/munge-key :nogaps)))
+  (is (= "a_simple_var" (thyroid/munge-key :a-simple-var)))
+  (is (= "a_spaced_var" (thyroid/munge-key "a spaced   var")))
+  (is (= "a_symbol" (thyroid/munge-key 'a-symbol)))
+  (is (= "" (thyroid/munge-key ""))))
+
+(deftest test-munge-coll
+  (testing "converts maps"
+    (is (= {"a" 1, "and_b" 2} (thyroid/munge-coll {:a 1, :and-b 2})))
+
+    (testing "with nested map"
+      (is (= {"a" {"nested_a" 1, "nested_b" 2}}
+             (thyroid/munge-coll {:a {:nested-a 1, :nested-b 2}}))))
+
+    (testing "with a list of maps"
+      (is (= {"a" [{"nested_name" 1} {"nested_name" 2}]}
+             (thyroid/munge-coll {:a [{:nested-name 1} {:nested-name 2}]}))))
+
+    (testing "preserves collection type"
+      (is (instance? clojure.lang.PersistentArrayMap
+                     (thyroid/munge-coll {:a 1})))
+      (is (instance? clojure.lang.PersistentTreeMap
+                     (thyroid/munge-coll (sorted-map :a 1 :b 2))))))
+
+  (testing "does nothing with normal lists"
+    (is (= [:a 1, :and-b 2] (thyroid/munge-coll [:a 1, :and-b 2])))
+    (is (= #{:a 1, :and-b 2} (thyroid/munge-coll #{:a 1, :and-b 2})))))
+
 (deftest test-context
   (testing "creates a context using a variables map"
     (testing "with strings as keys"
@@ -77,16 +107,43 @@
     (is (thrown? ExceptionInfo (thyroid/make-engine {})))))
 
 (deftest test-render
-  (let [resolver (thyroid/template-resolver {:type :string})
-        engine (thyroid/make-engine {:resolvers [resolver]})]
-    (testing "renders template to a string"
-      (let [s (thyroid/render engine
-                              "<h1 th:text=${title}></h1>"
-                              {"title" "Hello World"})]
-        (is (= s "<h1>Hello World</h1>"))))
+  (testing "with file resolver"
+    (let [resolver (thyroid/template-resolver {:type :file
+                                               ;; FIXME: / is required
+                                               :prefix "test-data/"
+                                               :suffix ".html"
+                                               :cache? false})
+          engine (thyroid/make-engine {:resolvers [resolver]})]
+      (testing "basic template"
+        (let [html (dom-parser/doc
+                    (thyroid/render engine "basic-template.html" {:title "Hello World"}))
+              [h1-tag] (dom/find-by-tag html "h1")]
+          (is (not (nil? h1-tag)))
+          (is (= "Hello World" (dom/text h1-tag)))))
 
-    (testing "accepts clojure style variable names"
-      (let [s (thyroid/render engine
-                              "<h1 th:text=${clj_style_var}></h1>"
-                              {:clj-style-var "Hello World"})]
-        (is (= s "<h1>Hello World</h1>"))))))
+      (testing "iteration template"
+        (let [html (dom-parser/doc
+                    (thyroid/render engine "iteration.html" {:items [{:name "Ice Cream"
+                                                                      :price 9.99}
+                                                                     {:name "Coffee"
+                                                                      :price 15.99}]}))
+              items (dom/child-elems (dom/find-by-id html "items"))]
+          (is (= 2 (count items)))
+          (let [[ice-cream coffee] items]
+            (is (= "Ice Cream - $9.99" (dom/text ice-cream)))
+            (is (= "Coffee - $15.99" (dom/text coffee))))))))
+
+  (testing "with string resolver"
+    (let [resolver (thyroid/template-resolver {:type :string, :cache? false})
+          engine (thyroid/make-engine {:resolvers [resolver]})]
+      (testing "renders template to a string"
+        (let [s (thyroid/render engine
+                                "<h1 th:text=${title}></h1>"
+                                {"title" "Hello World"})]
+          (is (= s "<h1>Hello World</h1>"))))
+
+      (testing "accepts clojure style variable names"
+        (let [s (thyroid/render engine
+                                "<h1 th:text=${clj_style_var}></h1>"
+                                {:clj-style-var "Hello World"})]
+          (is (= s "<h1>Hello World</h1>")))))))

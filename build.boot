@@ -4,11 +4,12 @@
  :resource-paths #{"src"}
  :source-paths #{"src"}
  :dependencies '[[org.clojure/clojure     "1.9.0-alpha17"]
-                 [org.thymeleaf/thymeleaf "3.0.6.RELEASE"
-                  :exclude [org.slf4j/slf4j-api]]
+                 [org.thymeleaf/thymeleaf "3.0.6.RELEASE"]
                  [irresponsible/spectra   "0.1.0"]
-                 [adzerk/boot-test   "1.2.0" :scope "test"]
-                 [io.djy/boot-kotlin "0.2.1" :scope "test"]])
+                 ;; Development dependencies
+                 [adzerk/boot-test         "1.2.0" :scope "test"]
+                 [io.djy/boot-kotlin       "0.2.1" :scope "test"]
+                 [irresponsible/domiscuity "0.2.0" :scope "test"]])
 
 (require '[adzerk.boot-test :as t]
          '[io.djy.boot-kotlin :refer [kotlinc]])
@@ -27,7 +28,6 @@
         :gpg-sign true
         :repo "clojars"}
   target {:dir #{"target"}})
-
 
 (deftask build []
   (comp (kotlinc)))

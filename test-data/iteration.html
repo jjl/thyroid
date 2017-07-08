@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en-US">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <title>Iteration</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+    <body>
+        <ul id="items">
+            <li th:each="item : ${items}">
+                <span th:text="${item.name}"></span>
+                -
+                $<span th:text="${item.price}"></span>
+            </li>
+        </ul>
+    </body>
+</html>

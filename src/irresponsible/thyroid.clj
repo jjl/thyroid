@@ -13,6 +13,18 @@
            [irresponsible.thyroid
             ClojureTagProcessor ClojureAttrProcessor ClojureDialect]))
 
+(defn- ensure-trailing-slash [path]
+  (-> (clojure.java.io/file path)
+      (.getPath)
+      (str "/")))
+
+(defn- set-cache-attrs!
+  [resolver {:keys [^long cache-ttl ^boolean cache?]}]
+  (when cache-ttl
+    (.setCacheTTLMs resolver cache-ttl))
+  (when (some? cache?)
+    (.setCacheable resolver cache?)))
+
 (s/def ::prefix (s/and string? seq))
 (s/def ::suffix (s/and string? seq))
 (s/def ::cache-ttl pos?)
@@ -35,18 +47,10 @@
   #(:type (ss/assert! ::template-resolver %))
   :default ::default)
 
-(defn- set-cache-attrs!
-  [resolver {:keys [^long cache-ttl ^boolean cache?]}]
-  (when cache-ttl
-    (.setCacheTTLMs resolver cache-ttl))
-  (when (some? cache?)
-    (.setCacheable resolver cache?)))
-
 (defmethod template-resolver :file
   [{:keys [^String prefix ^String suffix] :as options}]
   (let [tr (doto (FileTemplateResolver.)
-             ;; TODO: ensure prefix has trailing /
-             (.setPrefix prefix)
+             (.setPrefix (ensure-trailing-slash prefix))
              (.setSuffix suffix))]
     (set-cache-attrs! tr options)
     tr))

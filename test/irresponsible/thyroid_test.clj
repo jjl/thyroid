@@ -14,15 +14,21 @@
 
     (testing "with required params"
       (let [r (thyroid/template-resolver {:type :file
-                                          :prefix "test-data"
+                                          :prefix "test-data/"
                                           :suffix ".html"})]
         (is (instance? FileTemplateResolver r))
-        (is (= "test-data" (.getPrefix r)))
+        (is (= "test-data/" (.getPrefix r)))
         (is (= ".html" (.getSuffix r)))))
+
+    (testing "adds trailing slash to prefix path"
+      (let [r (thyroid/template-resolver {:type :file
+                                          :prefix "test-data"
+                                          :suffix ".html"})]
+        (is (= "test-data/" (.getPrefix r)))))
 
     (testing "with required params"
       (let [r (thyroid/template-resolver {:type :file
-                                          :prefix "test-data"
+                                          :prefix "test-data/"
                                           :suffix ".html"
                                           :cache? true
                                           :cache-ttl 420})]
@@ -109,7 +115,6 @@
 (deftest test-render
   (testing "with file resolver"
     (let [resolver (thyroid/template-resolver {:type :file
-                                               ;; FIXME: / is required
                                                :prefix "test-data/"
                                                :suffix ".html"
                                                :cache? false})

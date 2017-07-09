@@ -39,9 +39,7 @@
 
 (defmethod template-resolver-spec :file [_] ::file-template-resolver)
 (defmethod template-resolver-spec :string [_] ::string-template-resolver)
-;; FIXME: do nothing, end users shouldn't need to use spec
-(defmethod template-resolver-spec ::default [{:keys [type]}]
-  (throw (ex-info (str "Unknown template resolver type: " type) {:got type})))
+(defmethod template-resolver-spec ::default [_] (constantly true))
 
 (defmulti template-resolver
   #(:type (ss/assert! ::template-resolver %))

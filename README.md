@@ -38,18 +38,17 @@ The template file is defined as
 You can also define your own template resolvers 
 
 ```clojure
-(import '(org.thymeleaf.templateresolver StringTemplateResolver))
+(import '(org.thymeleaf.templatemode TemplateMode))
+(import '(org.thymeleaf.templateresolver ITemplateResolver TemplateResolution))
 
 ;; Allow parsing plain strings
 (defmethod t/template-resolver ::text
-  [_]
-  (StringTemplateResolver.))
-  
-;; You must implement the spec too
-(defmethod t/template-resolver-spec ::text
-  [_] 
-  ;; We don't actually need to check anything
-  (constantly true))
+  [options]
+  (reify ITemplateResolver
+    (getName [this] (:name options))
+    (getOrder [this] (:order options))
+    (resolveTemplate [this conf owner-template template resolution-attrs]
+      ...)))
 ```
 
 ## Contributors

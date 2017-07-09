@@ -4,7 +4,9 @@
             [irresponsible.domiscuity.parser :as dom-parser]
             [irresponsible.thyroid :as thyroid])
   (:import [clojure.lang ExceptionInfo]
+           [org.thymeleaf.templatemode TemplateMode]
            [org.thymeleaf.templateresolver
+            ITemplateResolver TemplateResolution
             FileTemplateResolver StringTemplateResolver]))
 
 (deftest test-template-resolver
@@ -49,7 +51,17 @@
 
   (testing "throws when resolver type doesn't exist"
     (is (thrown? ExceptionInfo
-                 (thyroid/template-resolver {:type :invalid})))))
+                 (thyroid/template-resolver {:type :invalid}))))
+
+  (testing "defining a custom resolver"
+    (defmethod thyroid/template-resolver :custom
+      [_]
+      (reify ITemplateResolver
+        (getName [this] "custom")
+        (getOrder [this] 0)
+        (resolveTemplate [this conf owner-template template template-resolution-attrs]
+          (TemplateResolution. nil TemplateMode/RAW nil))))
+    (is (thyroid/template-resolver {:type :custom}))))
 
 (deftest test-dialect)
 

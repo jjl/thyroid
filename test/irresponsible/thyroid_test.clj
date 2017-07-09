@@ -63,8 +63,6 @@
           (TemplateResolution. nil TemplateMode/RAW nil))))
     (is (thyroid/template-resolver {:type :custom}))))
 
-(deftest test-dialect)
-
 (deftest test-process-by-tag)
 
 (deftest test-process-by-attrs)
@@ -179,3 +177,5 @@
                                 "<h1 th:text=${clj_style_var}></h1>"
                                 {:clj-style-var "Hello World"})]
           (is (= s "<h1>Hello World</h1>")))))))
+
+(deftest test-dialect)

@@ -4,12 +4,17 @@
             [irresponsible.spectra :as ss])
   (:import [org.thymeleaf TemplateEngine]
            [org.thymeleaf.context Context]
-           [org.thymeleaf.dialect IDialect]
+           [org.thymeleaf.dialect AbstractProcessorDialect IDialect]
+           [org.thymeleaf.processor IProcessor]
+           [org.thymeleaf.processor.element
+            AbstractAttributeTagProcessor
+            AbstractElementTagProcessor]
            [org.thymeleaf.standard StandardDialect]
-           [org.thymeleaf.templateresolver ITemplateResolver
-            FileTemplateResolver StringTemplateResolver]
-           [irresponsible.thyroid
-            ClojureTagProcessor ClojureAttrProcessor ClojureDialect]))
+           [org.thymeleaf.templatemode TemplateMode]
+           [org.thymeleaf.templateresolver
+            FileTemplateResolver
+            ITemplateResolver
+            StringTemplateResolver]))
 
 (defn- ensure-trailing-slash [path]
   (-> (clojure.java.io/file path)
@@ -17,7 +22,7 @@
       (str "/")))
 
 (defn- set-cache-attrs!
-  [resolver {:keys [^long cache-ttl ^boolean cache?]}]
+  [^ITemplateResolver resolver {:keys [^long cache-ttl ^boolean cache?]}]
   (when cache-ttl
     (.setCacheTTLMs resolver cache-ttl))
   (when (some? cache?)
@@ -92,6 +97,9 @@
   (s/keys :req-un [::name ::prefix ::handler]
           :opt-un [::precedence ::meta]))
 
+(s/def ::dialect-processors
+  (s/coll-of #(instance? IProcessor %) :into #{}))
+
 (defn dialect
   "Creates a new dialect with the given properties
    args: [opts] ; map, keys:
@@ -99,15 +107,21 @@
      :prefix - mandatory string, the xml namespace of any tags we declare
      :handler - mandatory function, args: [prefix], returns: set
      :precedence - optional int, defaults to equal precedence with the standard dialect
-   returns: ClojureDialect"
+   returns: implementation of AbstractProcessorDialect and IObj"
   [opts]
   (let [{:keys [name prefix handler precedence meta]
          :or {precedence StandardDialect/PROCESSOR_PRECEDENCE}} (ss/assert! ::dialect-opts opts)]
-    (ClojureDialect. name prefix handler precedence meta)))
+    (proxy [AbstractProcessorDialect clojure.lang.IObj]
+        [name prefix precedence]
+      (meta [] meta)
+      (withMeta [meta]
+        (dialect (assoc opts :meta meta)))
+      (getProcessors [prefix]
+        (ss/assert! ::dialect-processors (handler prefix))))))
 
 (s/def ::use-prefix? boolean?)
 (s/def ::by-tag-opts (s/keys :req-un [::prefix ::name ::handler]
-                             :opt-un [::precedence ::meta]))
+                             :opt-un [::precedence]))
 
 (defn process-by-tag
   "Creates an element processor that is triggered by a tag name
@@ -117,11 +131,14 @@
      :use-prefix? - whether the tag should be recognised with or without the prefix
      :precedence - optional int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag structure-handler], void
-   returns: ClojureTagProcessor"
+  returns: implementation of AbstractElementTagProcessor"
   [opts]
-  (let [{:keys [prefix name use-prefix? precedence handler meta]
+  (let [{:keys [prefix name use-prefix? precedence handler]
          :or {precedence 1000}} (ss/assert! ::by-tag-opts opts)]
-    (ClojureTagProcessor. prefix name use-prefix? precedence handler meta)))
+    (proxy [AbstractElementTagProcessor]
+        [TemplateMode/HTML prefix name use-prefix? nil false precedence]
+      (doProcess [ctx tag struct-handler]
+        (handler ctx tag struct-handler)))))
 
 (s/def ::tag-name string?)
 (s/def ::attr-name string?)
@@ -131,7 +148,7 @@
 (s/def ::by-attr-opts (s/keys :req-un [::prefix ::tag-name ::attr-name
                                        ::prefix-tag? ::prefix-attr?
                                        ::remove? ::handler]
-                              :opt-un [::precedence ::meta]))
+                              :opt-un [::precedence]))
 
 (defn process-by-attrs
   "Creates an element processor that is triggered by an attribute name and optionally a tag name
@@ -144,10 +161,13 @@
      :remove? - mandatory bool, whether to remove this attribute from the tag
      :precedence - mandatory int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag attr-name attr-val structure-handler], void
-   returns: ClojureAttrProcessor"
+   returns: implementation of AbstractAttributeTagProcessor"
   [opts]
-  (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta]} (ss/assert! ::by-attr-opts opts)]
-    (ClojureAttrProcessor. prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler meta)))
+  (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]} (ss/assert! ::by-attr-opts opts)]
+    (proxy [AbstractAttributeTagProcessor]
+        [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
+      (doProcess [ctx tag attr-name attr-val struct-handler]
+        (handler ctx tag attr-name attr-val struct-handler)))))
 
 (defn munge-key
   "Returns a string that is valid for use as an identifier

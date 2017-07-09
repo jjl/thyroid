@@ -8,11 +8,9 @@
                  [irresponsible/spectra   "0.1.0"]
                  ;; Development dependencies
                  [adzerk/boot-test         "1.2.0" :scope "test"]
-                 [io.djy/boot-kotlin       "0.2.1" :scope "test"]
                  [irresponsible/domiscuity "0.2.0" :scope "test"]])
 
-(require '[adzerk.boot-test :as t]
-         '[io.djy.boot-kotlin :refer [kotlinc]])
+(require '[adzerk.boot-test :as t])
 
 (task-options!
   pom  {:project (get-env :project)
@@ -29,9 +27,6 @@
         :repo "clojars"}
   target {:dir #{"target"}})
 
-(deftask build []
-  (comp (kotlinc)))
-
 (deftask testing []
   (set-env! :source-paths  #(conj % "test")
             :resource-paths #(conj % "test"))
@@ -40,5 +35,4 @@
 (deftask test []
   (comp
    (testing)
-   (build)
    (t/test)))

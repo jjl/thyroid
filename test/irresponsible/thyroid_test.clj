@@ -109,6 +109,21 @@
       (is (empty? (.getVariableNames c))))))
 
 (deftest test-make-engine
+  (testing "accepts multiple resolvers"
+    (let [resolvers (map thyroid/template-resolver
+                         [{:type :file, :prefix "test-data/", :suffix".html"}
+                          {:type :string}])
+          engine (thyroid/make-engine {:resolvers resolvers})]
+      (is (= (set resolvers) (.getTemplateResolvers engine)))))
+
+  (testing "optionally accepts dialects"
+    (let [dialects [(thyroid/dialect {:name "dialect1", :prefix "d1", :handler identity})
+                    (thyroid/dialect {:name "dialect2", :prefix "d2", :handler identity})]
+          engine (thyroid/make-engine {:resolvers [(thyroid/template-resolver
+                                                    {:type :string})]
+                                       :dialects dialects})]
+      (is (clojure.set/subset? dialects (.getDialects engine)))))
+
   (testing "resolvers are required"
     (is (thrown? ExceptionInfo (thyroid/make-engine {})))))
 

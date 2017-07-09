@@ -5,9 +5,7 @@
   (:import [org.thymeleaf TemplateEngine]
            [org.thymeleaf.context Context]
            [org.thymeleaf.dialect IDialect]
-           [org.thymeleaf.model AttributeValueQuotes IStandaloneElementTag]
            [org.thymeleaf.standard StandardDialect]
-           [org.thymeleaf.templatemode TemplateMode]
            [org.thymeleaf.templateresolver ITemplateResolver
             FileTemplateResolver StringTemplateResolver]
            [irresponsible.thyroid

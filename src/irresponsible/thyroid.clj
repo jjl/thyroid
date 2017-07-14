@@ -110,7 +110,8 @@
    returns: implementation of AbstractProcessorDialect and IObj"
   [opts]
   (let [{:keys [name prefix handler precedence meta]
-         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE}} (ss/assert! ::dialect-opts opts)]
+         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE}}
+        (ss/assert! ::dialect-opts opts)]
     (proxy [AbstractProcessorDialect clojure.lang.IObj]
         [name prefix precedence]
       (meta [] meta)
@@ -121,49 +122,58 @@
 
 (s/def ::use-prefix? boolean?)
 (s/def ::by-tag-opts (s/keys :req-un [::prefix ::name ::handler]
-                             :opt-un [::precedence]))
+                             :opt-un [::precedence ::use-prefix?]))
 
 (defn process-by-tag
   "Creates an element processor that is triggered by a tag name
    args: [opts] ; map, keys;
      :prefix - mandatory string, the prefix of the dialect
      :name - mandatory string, the tag name
-     :use-prefix? - whether the tag should be recognised with or without the prefix
+     :use-prefix? - optional bool, whether the tag should be recognised with or without the prefix,
+     defaults to true
      :precedence - optional int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag structure-handler], void
   returns: implementation of AbstractElementTagProcessor"
   [opts]
   (let [{:keys [prefix name use-prefix? precedence handler]
-         :or {precedence 1000}} (ss/assert! ::by-tag-opts opts)]
+         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
+              use-prefix? true}}
+        (ss/assert! ::by-tag-opts opts)]
     (proxy [AbstractElementTagProcessor]
         [TemplateMode/HTML prefix name use-prefix? nil false precedence]
       (doProcess [ctx tag struct-handler]
         (handler ctx tag struct-handler)))))
 
-(s/def ::tag-name string?)
+(s/def ::tag-name (s/nilable string?))
 (s/def ::attr-name string?)
 (s/def ::prefix-tag? boolean?)
 (s/def ::prefix-attr? boolean?)
 (s/def ::remove? boolean?)
-(s/def ::by-attr-opts (s/keys :req-un [::prefix ::tag-name ::attr-name
-                                       ::prefix-tag? ::prefix-attr?
-                                       ::remove? ::handler]
-                              :opt-un [::precedence]))
+(s/def ::by-attr-opts (s/keys :req-un [::prefix ::attr-name ::handler]
+                              :opt-un [::precedence ::remove? ::tag-name
+                                      ::prefix-tag? ::prefix-attr?]))
 
 (defn process-by-attrs
   "Creates an element processor that is triggered by an attribute name and optionally a tag name
    args: [opts] ; map, keys;
      :prefix - mandatory string, the prefix of the dialect
-     :tag-name - mandatory string, the tag name
      :attr-name - mandatory string, the attributethis name
-     :prefix-tag? - mandatory bool, whether the tag should be recognised with or without the prefix
-     :prefix-attr? - mandatory bool, whether the attr should be recognised with or without the prefix
-     :remove? - mandatory bool, whether to remove this attribute from the tag
-     :precedence - mandatory int, defaults to equal precedence with the standard dialect
+     :prefix-attr? - optional bool, whether the attr should be recognised with or without the prefix,
+     defaults to true
      :handler - mandatory function, args: [context tag attr-name attr-val structure-handler], void
+     :tag-name - optional string, the tag name
+     :prefix-tag? - optional bool, whether the tag should be recognised with or without the prefix,
+     defaults to true
+     :remove? - optional bool, whether to remove this attribute from the tag, defaults to false
+     :precedence - optional int, defaults to equal precedence with the standard dialect
    returns: implementation of AbstractAttributeTagProcessor"
   [opts]
-  (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]} (ss/assert! ::by-attr-opts opts)]
+  (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]
+         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
+              prefix-attr? true
+              prefix-tag? true
+              remove? false}}
+        (ss/assert! ::by-attr-opts opts)]
     (proxy [AbstractAttributeTagProcessor]
         [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
       (doProcess [ctx tag attr-name attr-val struct-handler]

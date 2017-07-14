@@ -4,6 +4,8 @@
             [irresponsible.domiscuity.parser :as dom-parser]
             [irresponsible.thyroid :as thyroid])
   (:import [clojure.lang ExceptionInfo]
+           [org.thymeleaf.standard StandardDialect]
+           [org.thymeleaf.processor IProcessor]
            [org.thymeleaf.templatemode TemplateMode]
            [org.thymeleaf.templateresolver
             ITemplateResolver TemplateResolution
@@ -62,10 +64,6 @@
         (resolveTemplate [this conf owner-template template template-resolution-attrs]
           (TemplateResolution. nil TemplateMode/RAW nil))))
     (is (thyroid/template-resolver {:type :custom}))))
-
-(deftest test-process-by-tag)
-
-(deftest test-process-by-attrs)
 
 (deftest test-munge-key
   (is (= "nogaps" (thyroid/munge-key :nogaps)))
@@ -177,5 +175,86 @@
                                 "<h1 th:text=${clj_style_var}></h1>"
                                 {:clj-style-var "Hello World"})]
           (is (= s "<h1>Hello World</h1>")))))))
+
+(deftest test-process-by-tag
+  (let [tag-proc (thyroid/process-by-tag {:prefix "clj"
+                                          :use-prefix? true
+                                          :name "p"
+                                          :precedence 420
+                                          :handler identity})]
+    (testing "instance of IProcessor"
+      (is (instance? IProcessor tag-proc)))
+
+    (testing "attributes set correctly"
+      (is (= 420 (.getPrecedence tag-proc)))
+      (is (= "{clj:p,clj-p}"
+             (str (.getMatchingElementName tag-proc)))))
+
+    (testing "has no attribute name matcher"
+      (is (nil? (.getMatchingAttributeName tag-proc)))))
+
+  (testing "no prefix when use-prefix? is false"
+    (let [tag-proc (thyroid/process-by-tag {:prefix "hello"
+                                            :use-prefix? false
+                                            :name "p"
+                                            :handler identity})]
+      (is (= "{p}" (str (.getMatchingElementName tag-proc))))))
+
+  (testing "optional parameters omitted"
+    (let [attr-proc (thyroid/process-by-tag
+                     {:prefix "clj", :name "p", :handler identity})]
+      (is (= StandardDialect/PROCESSOR_PRECEDENCE (.getPrecedence attr-proc))))))
+
+(deftest test-process-by-attrs
+  (let [attr-proc (thyroid/process-by-attrs
+                   {:prefix "hello"
+                    :handler identity
+                    :attr-name "sayto"
+                    :attr-prefix? true
+                    :tag-name "p"
+                    :tag-prefix? true
+                    :remove? true
+                    :precedence 420})]
+    (testing "instance of IProcessor"
+      (is (instance? IProcessor attr-proc)))
+
+    (testing "attributes set correctly"
+      (is (= 420 (.getPrecedence attr-proc)))
+      (is (= "{hello:p,hello-p}" (str (.getMatchingElementName attr-proc))))
+      (is (= "{hello:sayto,data-hello-sayto}"
+             (str (.getMatchingAttributeName attr-proc))))))
+
+  (testing "optional parameters omitted"
+    (let [attr-proc (thyroid/process-by-attrs {:prefix "hello"
+                                               :attr-name "sayto"
+                                               :handler identity})]
+      (is (nil? (.getMatchingElementName attr-proc)))
+      (is (= StandardDialect/PROCESSOR_PRECEDENCE (.getPrecedence attr-proc)))))
+
+  (testing "no tag name specified"
+    (let [attr-proc (thyroid/process-by-attrs
+                     {:prefix "hello"
+                      :handler identity
+                      :attr-name "sayto"
+                      :prefix-attr? true})]
+      (is (nil? (.getMatchingElementName attr-proc)))))
+
+  (testing "prefix-tag? is false"
+    (let [attr-proc (thyroid/process-by-attrs
+                     {:prefix "hello"
+                      :handler identity
+                      :attr-name "sayto"
+                      :prefix-attr? true
+                      :tag-name "p"
+                      :prefix-tag? false})]
+      (is (= "{p}" (str (.getMatchingElementName attr-proc))))))
+
+  (testing "no attribute prefix when prefix-attr? is false"
+    (let [attr-proc (thyroid/process-by-attrs
+                     {:prefix "hello"
+                      :handler identity
+                      :attr-name "sayto"
+                      :prefix-attr? false})]
+      (is (= "{sayto}" (str (.getMatchingAttributeName attr-proc)))))))
 
 (deftest test-dialect)

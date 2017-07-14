@@ -28,25 +28,7 @@
   (when (some? cache?)
     (.setCacheable resolver cache?)))
 
-(s/def ::prefix (s/and string? seq))
-(s/def ::suffix (s/and string? seq))
-(s/def ::cache-ttl pos?)
-(s/def ::cache? boolean?)
-(s/def ::file-template-resolver
-  (s/keys :req-un [::prefix ::suffix] :opt-un [::cache-ttl ::cache?]))
-
-(s/def ::string-template-resolver
-  (s/keys :opt-un [::cache-ttl ::cache?]))
-
-(defmulti template-resolver-spec :type :default ::default)
-
-(defmethod template-resolver-spec :file [_] ::file-template-resolver)
-(defmethod template-resolver-spec :string [_] ::string-template-resolver)
-(defmethod template-resolver-spec ::default [_] (constantly true))
-
-(defmulti template-resolver
-  #(:type (ss/assert! ::template-resolver %))
-  :default ::default)
+(defmulti template-resolver :type :default ::default)
 
 (defmethod template-resolver :file
   [{:keys [^String prefix ^String suffix] :as options}]
@@ -66,21 +48,11 @@
   [{:keys [type]}]
   (throw (ex-info (str "Unknown template resolver type: " type) {:got type})))
 
-(s/def ::template-resolver (s/multi-spec template-resolver-spec ::resolver))
-
-(s/def ::resolver #(instance? ITemplateResolver %))
-(s/def ::resolvers (s/coll-of ::resolver :min-count 1 :into []))
-
-(s/def ::dialect #(instance? IDialect %))
-(s/def ::dialects (s/coll-of ::dialect :into []))
-(s/def ::thyroid (s/keys :req-un [::resolvers] :opt-un [::dialects]))
-
 (defn make-engine
   "Creates a thymeleaf TemplateEngine with the given properties.
   args: [opts]:"
-  [opts]
-  (let [{:keys [resolvers dialects]} (ss/assert! ::thyroid opts)
-        e (TemplateEngine.)]
+  [{:keys [resolvers dialects]}]
+  (let [e (TemplateEngine.)]
     (doseq [d dialects]
       (.addDialect e d))
     (.setTemplateResolvers e (set resolvers))
@@ -120,10 +92,6 @@
       (getProcessors [prefix]
         (ss/assert! ::dialect-processors (handler prefix))))))
 
-(s/def ::use-prefix? boolean?)
-(s/def ::by-tag-opts (s/keys :req-un [::prefix ::name ::handler]
-                             :opt-un [::precedence ::use-prefix?]))
-
 (defn process-by-tag
   "Creates an element processor that is triggered by a tag name
    args: [opts] ; map, keys;
@@ -134,24 +102,13 @@
      :precedence - optional int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag structure-handler], void
   returns: implementation of AbstractElementTagProcessor"
-  [opts]
-  (let [{:keys [prefix name use-prefix? precedence handler]
-         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
-              use-prefix? true}}
-        (ss/assert! ::by-tag-opts opts)]
-    (proxy [AbstractElementTagProcessor]
-        [TemplateMode/HTML prefix name use-prefix? nil false precedence]
-      (doProcess [ctx tag struct-handler]
-        (handler ctx tag struct-handler)))))
-
-(s/def ::tag-name (s/nilable string?))
-(s/def ::attr-name string?)
-(s/def ::prefix-tag? boolean?)
-(s/def ::prefix-attr? boolean?)
-(s/def ::remove? boolean?)
-(s/def ::by-attr-opts (s/keys :req-un [::prefix ::attr-name ::handler]
-                              :opt-un [::precedence ::remove? ::tag-name
-                                      ::prefix-tag? ::prefix-attr?]))
+  [{:keys [prefix name use-prefix? precedence handler]
+    :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
+         use-prefix? true}}]
+  (proxy [AbstractElementTagProcessor]
+      [TemplateMode/HTML prefix name use-prefix? nil false precedence]
+    (doProcess [ctx tag struct-handler]
+      (handler ctx tag struct-handler))))
 
 (defn process-by-attrs
   "Creates an element processor that is triggered by an attribute name and optionally a tag name
@@ -167,17 +124,15 @@
      :remove? - optional bool, whether to remove this attribute from the tag, defaults to false
      :precedence - optional int, defaults to equal precedence with the standard dialect
    returns: implementation of AbstractAttributeTagProcessor"
-  [opts]
-  (let [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]
-         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
-              prefix-attr? true
-              prefix-tag? true
-              remove? false}}
-        (ss/assert! ::by-attr-opts opts)]
-    (proxy [AbstractAttributeTagProcessor]
-        [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
-      (doProcess [ctx tag attr-name attr-val struct-handler]
-        (handler ctx tag attr-name attr-val struct-handler)))))
+  [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]
+    :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
+         prefix-attr? true
+         prefix-tag? true
+         remove? false}}]
+  (proxy [AbstractAttributeTagProcessor]
+      [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
+    (doProcess [ctx tag attr-name attr-val struct-handler]
+      (handler ctx tag attr-name attr-val struct-handler))))
 
 (defn munge-key
   "Returns a string that is valid for use as an identifier

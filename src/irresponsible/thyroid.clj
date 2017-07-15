@@ -125,7 +125,7 @@
     (getProcessors [prefix]
       (let [processors (handler prefix)]
         (if-let [invalid (seq (filter (complement processor?) processors))]
-          (throw (ex-info "Processors must be children of IProcessor"
+          (throw (ex-info "Processors must implement IProcessor"
                           {:got (map type invalid)}))
           processors)))))
 

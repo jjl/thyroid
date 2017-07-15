@@ -48,7 +48,10 @@
 
 (defn make-engine
   "Creates a thymeleaf TemplateEngine with the given properties.
-  args: [opts]:"
+  args: [opts]: map, keys;
+    :resolvers - mandatory list, resolvers to be used for retrieving template data
+    :dialects - optional list, extra dialects to use when rendering
+  returns: TemplateEngine"
   [{:keys [resolvers dialects]}]
   (let [e (TemplateEngine.)]
     (doseq [d dialects]
@@ -163,7 +166,8 @@
 
 (defn render
   "Render a template `template` using `engine` as a string,
-  using `data` as the context."
+  using `data` as the context. `data` defaults to an empty map
+  if not provided."
   ([engine template] (render engine template {}))
   ([^TemplateEngine engine ^String template data]
    (let [^Context c (context data)]

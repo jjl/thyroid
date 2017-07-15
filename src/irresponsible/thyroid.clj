@@ -164,6 +164,7 @@
 (defn render
   "Render a template `template` using `engine` as a string,
   using `data` as the context."
-  [^TemplateEngine engine ^String template data]
-  (let [^Context c (context data)]
-    (.process engine template c)))
+  ([engine template] (render engine template {}))
+  ([^TemplateEngine engine ^String template data]
+   (let [^Context c (context data)]
+     (.process engine template c))))

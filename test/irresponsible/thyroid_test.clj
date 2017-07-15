@@ -309,9 +309,9 @@
                                        :dialects [dialect]})]
       (testing "attribute processor"
         (is (= "<p>Hello, World</p>"
-               (thyroid/render engine "<p hello:sayto=\"World\">Hiya!</p>" {})))
+               (thyroid/render engine "<p hello:sayto=\"World\">Hiya!</p>")))
         (is (= "<p>Hello, World</p>"
-               (thyroid/render engine "<p data-hello-sayto=\"World\">Hiya!</p>" {}))))
+               (thyroid/render engine "<p data-hello-sayto=\"World\">Hiya!</p>"))))
 
       (testing "tag processor"
         (is (= "<hello:greet>Hello there!</hello:greet>"

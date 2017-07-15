@@ -4,6 +4,7 @@
             [irresponsible.domiscuity.parser :as dom-parser]
             [irresponsible.thyroid :as thyroid])
   (:import [clojure.lang ExceptionInfo]
+           [org.thymeleaf.dialect IDialect]
            [org.thymeleaf.standard StandardDialect]
            [org.thymeleaf.processor IProcessor]
            [org.thymeleaf.templatemode TemplateMode]
@@ -13,9 +14,6 @@
 
 (deftest test-template-resolver
   (testing "file resolver"
-    (testing "with missing required params"
-      (is (thrown? ExceptionInfo (thyroid/template-resolver {:type :file}))))
-
     (testing "with required params"
       (let [r (thyroid/template-resolver {:type :file
                                           :prefix "test-data/"
@@ -135,46 +133,14 @@
   (testing "resolvers are required"
     (is (thrown? ExceptionInfo (thyroid/make-engine {})))))
 
-(deftest test-render
-  (testing "with file resolver"
-    (let [resolver (thyroid/template-resolver {:type :file
-                                               :prefix "test-data/"
-                                               :suffix ".html"
-                                               :cache? false})
-          engine (thyroid/make-engine {:resolvers [resolver]})]
-      (testing "basic template"
-        (let [html (dom-parser/doc
-                    (thyroid/render engine "basic-template.html" {:title "Hello World"}))
-              [h1-tag] (dom/find-by-tag html "h1")]
-          (is (not (nil? h1-tag)))
-          (is (= "Hello World" (dom/text h1-tag)))))
-
-      (testing "iteration template"
-        (let [html (dom-parser/doc
-                    (thyroid/render engine "iteration.html" {:items [{:name "Ice Cream"
-                                                                      :price 9.99}
-                                                                     {:name "Coffee"
-                                                                      :price 15.99}]}))
-              items (dom/child-elems (dom/find-by-id html "items"))]
-          (is (= 2 (count items)))
-          (let [[ice-cream coffee] items]
-            (is (= "Ice Cream - $9.99" (dom/text ice-cream)))
-            (is (= "Coffee - $15.99" (dom/text coffee))))))))
-
-  (testing "with string resolver"
-    (let [resolver (thyroid/template-resolver {:type :string, :cache? false})
-          engine (thyroid/make-engine {:resolvers [resolver]})]
-      (testing "renders template to a string"
-        (let [s (thyroid/render engine
-                                "<h1 th:text=${title}></h1>"
-                                {"title" "Hello World"})]
-          (is (= s "<h1>Hello World</h1>"))))
-
-      (testing "accepts clojure style variable names"
-        (let [s (thyroid/render engine
-                                "<h1 th:text=${clj_style_var}></h1>"
-                                {:clj-style-var "Hello World"})]
-          (is (= s "<h1>Hello World</h1>")))))))
+(deftest test-processor?
+  (is (thyroid/processor? (thyroid/process-by-tag
+                           {:prefix "clj", :name "p", :handler identity})))
+  (is (thyroid/processor? (reify IProcessor
+                            (getPrecedence [this] 420)
+                            (getTemplateMode [this] nil))))
+  (is (not (thyroid/processor? (thyroid/template-resolver {:type :string}))))
+  (is (not (thyroid/processor? nil))))
 
 (deftest test-process-by-tag
   (let [tag-proc (thyroid/process-by-tag {:prefix "clj"
@@ -257,4 +223,98 @@
                       :prefix-attr? false})]
       (is (= "{sayto}" (str (.getMatchingAttributeName attr-proc)))))))
 
-(deftest test-dialect)
+(deftest test-dialect
+  (let [d (thyroid/dialect {:name "clojure" :prefix "clj"
+                            :handler identity :precedence 420})]
+    (testing "instance of IDialect"
+      (is (instance? IDialect d)))
+
+    (testing "attributes set correctly"
+      (is (= "clojure" (.getName d)))
+      (is (= "clj" (.getPrefix d)))
+      (is (= 420 (.getDialectProcessorPrecedence d)))))
+
+  (testing "optional parameters omitted"
+    (let [d (thyroid/dialect {:name "clojure" :prefix "clj" :handler identity})]
+      (is (= StandardDialect/PROCESSOR_PRECEDENCE
+             (.getDialectProcessorPrecedence d)))))
+
+  (testing "ensures that returned processors from handler are processors"
+    (let [handlers [identity
+                    (fn [_] #{"a" "b" "c"})
+                    (fn [_] #{(thyroid/template-resolver {:type :string})})]]
+      (doseq [h handlers]
+        (let [d (thyroid/dialect {:name "clojure" :prefix "clj" :handler h})]
+          (is (thrown? ExceptionInfo (.getProcessors d "clj"))))))))
+
+(deftest test-render
+  (testing "with file resolver"
+    (let [resolver (thyroid/template-resolver {:type :file
+                                               :prefix "test-data/"
+                                               :suffix ".html"
+                                               :cache? false})
+          engine (thyroid/make-engine {:resolvers [resolver]})]
+      (testing "basic template"
+        (let [html (dom-parser/doc
+                    (thyroid/render engine "basic-template.html" {:title "Hello World"}))
+              [h1-tag] (dom/find-by-tag html "h1")]
+          (is (not (nil? h1-tag)))
+          (is (= "Hello World" (dom/text h1-tag)))))
+
+      (testing "iteration template"
+        (let [html (dom-parser/doc
+                    (thyroid/render engine "iteration.html" {:items [{:name "Ice Cream"
+                                                                      :price 9.99}
+                                                                     {:name "Coffee"
+                                                                      :price 15.99}]}))
+              items (dom/child-elems (dom/find-by-id html "items"))]
+          (is (= 2 (count items)))
+          (let [[ice-cream coffee] items]
+            (is (= "Ice Cream - $9.99" (dom/text ice-cream)))
+            (is (= "Coffee - $15.99" (dom/text coffee))))))))
+
+  (testing "with string resolver"
+    (let [resolver (thyroid/template-resolver {:type :string, :cache? false})
+          engine (thyroid/make-engine {:resolvers [resolver]})]
+      (testing "renders template to a string"
+        (let [s (thyroid/render engine
+                                "<h1 th:text=${title}></h1>"
+                                {"title" "Hello World"})]
+          (is (= s "<h1>Hello World</h1>"))))
+
+      (testing "accepts clojure style variable names"
+        (let [s (thyroid/render engine
+                                "<h1 th:text=${clj_style_var}></h1>"
+                                {:clj-style-var "Hello World"})]
+          (is (= s "<h1>Hello World</h1>"))))))
+
+  (testing "with a custom dialect"
+    (let [handler (fn [prefix]
+                    #{(thyroid/process-by-attrs
+                       {:prefix prefix
+                        :attr-name "sayto"
+                        :remove? true
+                        :handler (fn [_ _ _ attr-val struct]
+                                   (.setBody struct (str "Hello, " attr-val) true))})
+                      (thyroid/process-by-tag
+                       {:name "greet"
+                        :prefix prefix
+                        :handler (fn [_ _ struct]
+                                   (.setBody struct "Hello there!" true))})})
+          dialect (thyroid/dialect {:name "Hello Dialect"
+                                    :prefix "hello"
+                                    :handler handler})
+          engine (thyroid/make-engine {:resolvers [(thyroid/template-resolver
+                                                    {:type :string :cache? false})]
+                                       :dialects [dialect]})]
+      (testing "attribute processor"
+        (is (= "<p>Hello, World</p>"
+               (thyroid/render engine "<p hello:sayto=\"World\">Hiya!</p>" {})))
+        (is (= "<p>Hello, World</p>"
+               (thyroid/render engine "<p data-hello-sayto=\"World\">Hiya!</p>" {}))))
+
+      (testing "tag processor"
+        (is (= "<hello:greet>Hello there!</hello:greet>"
+               (thyroid/render engine "<hello:greet/>" {})))
+        (is (= "<hello-greet>Hello there!</hello-greet>"
+               (thyroid/render engine "<hello-greet/>" {})))))))

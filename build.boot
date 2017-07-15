@@ -5,7 +5,6 @@
  :source-paths #{"src"}
  :dependencies '[[org.clojure/clojure     "1.9.0-alpha17"]
                  [org.thymeleaf/thymeleaf "3.0.6.RELEASE"]
-                 [irresponsible/spectra   "0.1.0"]
                  ;; Development dependencies
                  [adzerk/boot-test         "1.2.0" :scope "test"]
                  [irresponsible/domiscuity "0.2.0" :scope "test"]])

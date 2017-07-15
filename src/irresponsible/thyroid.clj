@@ -1,10 +1,8 @@
 (ns irresponsible.thyroid
-  (:require [clojure.spec.alpha :as s]
-            [clojure.walk :as walk]
-            [irresponsible.spectra :as ss])
+  (:require [clojure.walk :as walk])
   (:import [org.thymeleaf TemplateEngine]
            [org.thymeleaf.context Context]
-           [org.thymeleaf.dialect AbstractProcessorDialect IDialect]
+           [org.thymeleaf.dialect AbstractProcessorDialect]
            [org.thymeleaf.processor IProcessor]
            [org.thymeleaf.processor.element
             AbstractAttributeTagProcessor
@@ -55,42 +53,16 @@
   (let [e (TemplateEngine.)]
     (doseq [d dialects]
       (.addDialect e d))
-    (.setTemplateResolvers e (set resolvers))
+    (if (seq resolvers)
+      (.setTemplateResolvers e (set resolvers))
+      (throw (ex-info
+              "Template resolvers are required for engine" {:got resolvers})))
     e))
 
-(s/def ::meta map?)
-
-(s/def ::name string?)
-(s/def ::prefix string?)
-(s/def ::precedence int?)
-(s/def ::handler ifn?)
-
-(s/def ::dialect-opts
-  (s/keys :req-un [::name ::prefix ::handler]
-          :opt-un [::precedence ::meta]))
-
-(s/def ::dialect-processors
-  (s/coll-of #(instance? IProcessor %) :into #{}))
-
-(defn dialect
-  "Creates a new dialect with the given properties
-   args: [opts] ; map, keys:
-     :name - mandatory string, the human readable name of this dialect
-     :prefix - mandatory string, the xml namespace of any tags we declare
-     :handler - mandatory function, args: [prefix], returns: set
-     :precedence - optional int, defaults to equal precedence with the standard dialect
-   returns: implementation of AbstractProcessorDialect and IObj"
-  [opts]
-  (let [{:keys [name prefix handler precedence meta]
-         :or {precedence StandardDialect/PROCESSOR_PRECEDENCE}}
-        (ss/assert! ::dialect-opts opts)]
-    (proxy [AbstractProcessorDialect clojure.lang.IObj]
-        [name prefix precedence]
-      (meta [] meta)
-      (withMeta [meta]
-        (dialect (assoc opts :meta meta)))
-      (getProcessors [prefix]
-        (ss/assert! ::dialect-processors (handler prefix))))))
+(defn processor?
+  "Returns true if `x` is an instance of `IProcessor`."
+  [x]
+  (instance? IProcessor x))
 
 (defn process-by-tag
   "Creates an element processor that is triggered by a tag name
@@ -128,11 +100,34 @@
     :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
          prefix-attr? true
          prefix-tag? true
-         remove? false}}]
+         remove? true}}]
   (proxy [AbstractAttributeTagProcessor]
       [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
     (doProcess [ctx tag attr-name attr-val struct-handler]
       (handler ctx tag attr-name attr-val struct-handler))))
+
+(defn dialect
+  "Creates a new dialect with the given properties
+   args: [opts] ; map, keys:
+     :name - mandatory string, the human readable name of this dialect
+     :prefix - mandatory string, the xml namespace of any tags we declare
+     :handler - mandatory function, args: [prefix], returns: set
+     :precedence - optional int, defaults to equal precedence with the standard dialect
+   returns: implementation of AbstractProcessorDialect and IObj"
+  [{:keys [name prefix handler precedence meta]
+    :or {precedence StandardDialect/PROCESSOR_PRECEDENCE}
+    :as opts}]
+  (proxy [AbstractProcessorDialect clojure.lang.IObj]
+      [name prefix precedence]
+    (meta [] meta)
+    (withMeta [meta]
+      (dialect (assoc opts :meta meta)))
+    (getProcessors [prefix]
+      (let [processors (handler prefix)]
+        (if-let [invalid (seq (filter (complement processor?) processors))]
+          (throw (ex-info "Processors must be children of IProcessor"
+                          {:got (map type invalid)}))
+          processors)))))
 
 (defn munge-key
   "Returns a string that is valid for use as an identifier

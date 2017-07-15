@@ -144,7 +144,7 @@
 
 (deftest test-process-by-tag
   (let [tag-proc (thyroid/process-by-tag {:prefix "clj"
-                                          :use-prefix? true
+                                          :prefix? true
                                           :name "p"
                                           :precedence 420
                                           :handler identity})]
@@ -159,9 +159,9 @@
     (testing "has no attribute name matcher"
       (is (nil? (.getMatchingAttributeName tag-proc)))))
 
-  (testing "no prefix when use-prefix? is false"
+  (testing "no prefix when prefix? is false"
     (let [tag-proc (thyroid/process-by-tag {:prefix "hello"
-                                            :use-prefix? false
+                                            :prefix? false
                                             :name "p"
                                             :handler identity})]
       (is (= "{p}" (str (.getMatchingElementName tag-proc))))))
@@ -202,25 +202,25 @@
                      {:prefix "hello"
                       :handler identity
                       :attr-name "sayto"
-                      :prefix-attr? true})]
+                      :attr-prefix? true})]
       (is (nil? (.getMatchingElementName attr-proc)))))
 
-  (testing "prefix-tag? is false"
+  (testing "tag-prefix? is false"
     (let [attr-proc (thyroid/process-by-attrs
                      {:prefix "hello"
                       :handler identity
                       :attr-name "sayto"
-                      :prefix-attr? true
+                      :attr-prefix? true
                       :tag-name "p"
-                      :prefix-tag? false})]
+                      :tag-prefix? false})]
       (is (= "{p}" (str (.getMatchingElementName attr-proc))))))
 
-  (testing "no attribute prefix when prefix-attr? is false"
+  (testing "no attribute prefix when attr-prefix? is false"
     (let [attr-proc (thyroid/process-by-attrs
                      {:prefix "hello"
                       :handler identity
                       :attr-name "sayto"
-                      :prefix-attr? false})]
+                      :attr-prefix? false})]
       (is (= "{sayto}" (str (.getMatchingAttributeName attr-proc)))))))
 
 (deftest test-dialect

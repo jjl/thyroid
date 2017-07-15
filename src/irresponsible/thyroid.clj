@@ -74,11 +74,11 @@
      :precedence - optional int, defaults to equal precedence with the standard dialect
      :handler - mandatory function, args: [context tag structure-handler], void
   returns: implementation of AbstractElementTagProcessor"
-  [{:keys [prefix name use-prefix? precedence handler]
+  [{:keys [prefix name prefix? precedence handler]
     :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
-         use-prefix? true}}]
+         prefix? true}}]
   (proxy [AbstractElementTagProcessor]
-      [TemplateMode/HTML prefix name use-prefix? nil false precedence]
+      [TemplateMode/HTML prefix name prefix? nil false precedence]
     (doProcess [ctx tag struct-handler]
       (handler ctx tag struct-handler))))
 
@@ -87,22 +87,22 @@
    args: [opts] ; map, keys;
      :prefix - mandatory string, the prefix of the dialect
      :attr-name - mandatory string, the attributethis name
-     :prefix-attr? - optional bool, whether the attr should be recognised with or without the prefix,
+     :attr-prefix? - optional bool, whether the attr should be recognised with or without the prefix,
      defaults to true
      :handler - mandatory function, args: [context tag attr-name attr-val structure-handler], void
      :tag-name - optional string, the tag name
-     :prefix-tag? - optional bool, whether the tag should be recognised with or without the prefix,
+     :tag-prefix? - optional bool, whether the tag should be recognised with or without the prefix,
      defaults to true
      :remove? - optional bool, whether to remove this attribute from the tag, defaults to false
      :precedence - optional int, defaults to equal precedence with the standard dialect
    returns: implementation of AbstractAttributeTagProcessor"
-  [{:keys [prefix tag-name attr-name prefix-tag? prefix-attr? remove? precedence handler]
+  [{:keys [prefix tag-name attr-name tag-prefix? attr-prefix? remove? precedence handler]
     :or {precedence StandardDialect/PROCESSOR_PRECEDENCE
-         prefix-attr? true
-         prefix-tag? true
+         attr-prefix? true
+         tag-prefix? true
          remove? true}}]
   (proxy [AbstractAttributeTagProcessor]
-      [TemplateMode/HTML prefix tag-name prefix-tag? attr-name prefix-attr? precedence remove?]
+      [TemplateMode/HTML prefix tag-name tag-prefix? attr-name attr-prefix? precedence remove?]
     (doProcess [ctx tag attr-name attr-val struct-handler]
       (handler ctx tag attr-name attr-val struct-handler))))
 

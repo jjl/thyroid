@@ -44,8 +44,7 @@ The template file is defined as
 You can define your own template resolvers like this
 
 ```clojure
-(import '(org.thymeleaf.templatemode TemplateMode))
-(import '(org.thymeleaf.templateresolver ITemplateResolver TemplateResolution))
+(import '(org.thymeleaf.templateresolver ITemplateResolver))
 
 (defmethod t/template-resolver ::custom
   [options]

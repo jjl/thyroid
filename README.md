@@ -2,6 +2,7 @@ The irresponsible clojure guild presents...
 
 # Thyroid
 
+[![Jitpack](https://jitpack.io/v/irresponsible/thyroid.svg)](https://jitpack.io/#irresponsible/thyroid)
 [![Build Status](https://travis-ci.org/irresponsible/thyroid.svg?branch=master)](https://travis-ci.org/irresponsible/thyroid)
 
 HTML5 templating made differently insane.

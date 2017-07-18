@@ -47,7 +47,6 @@ You can define your own template resolvers like this
 (import '(org.thymeleaf.templatemode TemplateMode))
 (import '(org.thymeleaf.templateresolver ITemplateResolver TemplateResolution))
 
-;; Allow parsing plain strings
 (defmethod t/template-resolver ::custom
   [options]
   (reify ITemplateResolver

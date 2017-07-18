@@ -2,6 +2,7 @@ The irresponsible clojure guild presents...
 
 # Thyroid
 
+[![Clojars Project](https://img.shields.io/clojars/v/irresponsible/thyroid.svg)](https://clojars.org/irresponsible/thyroid)
 [![Jitpack](https://jitpack.io/v/irresponsible/thyroid.svg)](https://jitpack.io/#irresponsible/thyroid)
 [![Build Status](https://travis-ci.org/irresponsible/thyroid.svg?branch=master)](https://travis-ci.org/irresponsible/thyroid)
 

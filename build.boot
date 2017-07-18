@@ -1,13 +1,19 @@
+; vim: syntax=clojure
+(set-env! :dependencies (cond
+  (= "1.8.0" (System/getenv "BOOT_CLOJURE_VERSION"))
+    '[[org.clojure/clojure "1.8.0" :scope "provided"]]
+  :else
+    '[[org.clojure/clojure "1.9.0-alpha17" :scope "provided"]]))
+
 (set-env!
  :project 'irresponsible/thyroid
  :version "0.1.0"
  :resource-paths #{"src" "resources"}
  :source-paths #{"src"}
- :dependencies '[[org.clojure/clojure     "1.9.0-alpha17"]
-                 [org.thymeleaf/thymeleaf "3.0.6.RELEASE"]
+ :dependencies #(into % '[[org.thymeleaf/thymeleaf "3.0.6.RELEASE"]
                  ;; Development dependencies
                  [adzerk/boot-test         "1.2.0" :scope "test"]
-                 [irresponsible/domiscuity "0.2.0" :scope "test"]])
+                 [irresponsible/domiscuity "0.2.0" :scope "test"]]))
 
 (require '[adzerk.boot-test :as t])
 

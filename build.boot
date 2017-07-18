@@ -1,7 +1,7 @@
 (set-env!
  :project 'irresponsible/thyroid
  :version "0.1.0"
- :resource-paths #{"src"}
+ :resource-paths #{"src" "resources"}
  :source-paths #{"src"}
  :dependencies '[[org.clojure/clojure     "1.9.0-alpha17"]
                  [org.thymeleaf/thymeleaf "3.0.6.RELEASE"]

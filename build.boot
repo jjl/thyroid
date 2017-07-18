@@ -7,7 +7,7 @@
 
 (set-env!
  :project 'irresponsible/thyroid
- :version "0.1.0"
+ :version "0.1.1"
  :resource-paths #{"src" "resources"}
  :source-paths #{"src"}
  :dependencies #(into % '[[org.thymeleaf/thymeleaf "3.0.6.RELEASE"]
